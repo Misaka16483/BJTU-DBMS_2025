@@ -1,0 +1,3 @@
+D:/dbms-project/out/build/compile_with_gcc/CMakeFiles/dbms.dir
+D:/dbms-project/out/build/compile_with_gcc/CMakeFiles/edit_cache.dir
+D:/dbms-project/out/build/compile_with_gcc/CMakeFiles/rebuild_cache.dir

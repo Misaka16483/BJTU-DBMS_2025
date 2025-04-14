@@ -1,0 +1,3 @@
+D:\CMake\bin\cmake.exe -E rm -f CMakeFiles\dbms.dir/objects.a
+D:\msys64\ucrt64\bin\ar.exe qc CMakeFiles\dbms.dir/objects.a @CMakeFiles\dbms.dir\objects1.rsp
+D:\msys64\ucrt64\bin\g++.exe -g -Wl,--whole-archive CMakeFiles\dbms.dir/objects.a -Wl,--no-whole-archive -o dbms.exe -Wl,--out-implib,libdbms.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\dbms.dir\linkLibs.rsp
