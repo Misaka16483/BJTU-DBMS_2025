@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"D:/dbms-project/out/build/compile_with_gcc/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
