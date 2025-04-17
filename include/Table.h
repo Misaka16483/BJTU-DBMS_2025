@@ -22,16 +22,7 @@ public:
         const std::function<bool(const std::vector<Value>&)>& condition) const ; //选择记录
     void Delete();
     void Delete(const std::function<bool(const std::vector<Value>&)>& condition);
+    void insert(std::vector<std::string> names,std::vector<Value> values); //插入记录
+    void update(std::string name,Value newValue,const std::function<bool(const std::vector<Value>&)>& condition); //更新记录
     //void updateRecord(int index, std::vector<Value> newRecord); //更新记录
-};
-class Conditions{
-    //待建设
-    /*
-    largerThan
-    equals
-    smallerThan
-    largerThanOrEquals
-    smallerThanOrEquals
-    notEquals
-    */
 };

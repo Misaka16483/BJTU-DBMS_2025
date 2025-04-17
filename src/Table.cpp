@@ -76,3 +76,43 @@ void Table::Delete(const std::function<bool(const std::vector<Value>&)>& conditi
         }
     }
 }
+void Table::insert(std::vector<std::string> names,std::vector<Value> values){
+    std::vector<int> indexs;
+    for(auto &name:names){
+        int index;
+        try{
+            index=getFieldIndex(name);
+        }
+        catch(const std::out_of_range& e){
+            throw std::invalid_argument("Field not found: " + name);
+            return;
+        }
+        indexs.push_back(index);
+    }
+    std::vector<Value> record(fields.size());
+    for(size_t i=0;i<indexs.size();i++){
+        if(!isTypeMatch(values[i],fields[indexs[i]].second)){
+            throw std::invalid_argument("Type mismatch for field: " + fields[indexs[i]].first);
+        }
+        record[indexs[i]]=values[i];
+    }
+    records.push_back(record);
+}
+void Table::update(std::string name,Value newValue,const std::function<bool(const std::vector<Value>&)>& condition){
+    size_t index;
+    try{
+        index=getFieldIndex(name);
+    }
+    catch(const std::out_of_range& e){
+        throw std::invalid_argument("Field not found: " + name);
+        return;
+    }
+    if(!isTypeMatch(newValue,fields[index].second)){
+        throw std::invalid_argument("Type mismatch for field: " + fields[index].first);
+    }
+    for(auto &record:records){
+        if(condition(record)){
+            record[index]=newValue;
+        }
+    }
+}
