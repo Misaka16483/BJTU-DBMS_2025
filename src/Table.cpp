@@ -41,7 +41,7 @@ std::vector<std::vector<Value>> Table::getRecords(){ //获取记录
 std::vector<std::pair<std::string,DataType>> Table::getFields(){ //获取字段
     return fields;
 }
-size_t Table::getFiledIndex(const std::string& name) const{
+size_t Table::getFieldIndex(const std::string& name) const{
     for(size_t i=0;i<fields.size();i++){
         if(fields[i].first == name){
             return i;

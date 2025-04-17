@@ -10,7 +10,7 @@ int main(int, char**){
     table.addRecord({3, "Charlie", 35});
     table.addRecord({4, "David", 20});
     table.addRecord({5, "Eve", 10});
-    size_t index = table.getFiledIndex("age");
+    size_t index = table.getFieldIndex("age");
     table.Delete([index](const std::vector<Value>& row) {
         return std::get<int>(row[index]) > 20; // Select rows where age > 20
     });

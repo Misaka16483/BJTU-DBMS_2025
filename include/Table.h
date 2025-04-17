@@ -16,7 +16,7 @@ public:
     std::vector<std::pair<std::string,DataType>> getFields(); //获取字段
     std::vector<std::vector<Value>> getRecords(); //获取记录
     std::string getName();
-    size_t getFiledIndex(const std::string& name) const;
+    size_t getFieldIndex(const std::string& name) const;
     std::vector<std::vector<Value>> Select() const; //选择所有记录
     std::vector<std::vector<Value>> Select(
         const std::function<bool(const std::vector<Value>&)>& condition) const ; //选择记录
