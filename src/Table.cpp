@@ -1,5 +1,6 @@
 #include"Table.h"
 #include<stdexcept>
+#include<iostream>
 bool Table::isTypeMatch(Value value, DataType type){ //类型匹配
     switch(type){
         case DataType::INT:
@@ -49,19 +50,27 @@ size_t Table::getFieldIndex(const std::string& name) const{
     }
     throw std::out_of_range("Field not found: " + name);
 }
-std::vector<std::vector<Value>> Table::Select(
-    const std::function<bool(const std::vector<Value>&)>& condition) const 
-{
-    std::vector<std::vector<Value>> result;
-    for (const auto& row : records) {
-        if (condition(row)) {
-            result.push_back(row);
+Table* Table::Select(std::vector<std::string> columnNames,const std::function<bool(const std::vector<Value>&)>& condition){
+    Table* result=new Table();
+    std::vector<size_t> indexs(columnNames.size());
+    for(int i=0;i<columnNames.size();i++){
+        size_t index=getFieldIndex(columnNames[i]);
+        result->addField(columnNames[i],fields[index].second);
+        indexs[i]=index;
+    }
+    for(auto &record:records){
+        if(condition(record)){
+            std::vector<Value> newRecord(columnNames.size());
+            for(int i=0;i<columnNames.size();i++){
+                newRecord[i]=record[indexs[i]];
+            }
+            result->addRecord(newRecord);
         }
     }
     return result;
 }
-std::vector<std::vector<Value>> Table::Select() const{
-    return records;
+Table* Table::Select(){
+    return this;
 }
 void Table::Delete(){
     records.clear();
@@ -114,5 +123,19 @@ void Table::update(std::string name,Value newValue,const std::function<bool(cons
         if(condition(record)){
             record[index]=newValue;
         }
+    }
+}
+void Table::printTable(){
+    for(auto &field:fields){
+        std::cout<<field.first<<"\t";
+    }
+    std::cout<<std::endl;
+    std::cout<<"--------------------------------------------------"<<std::endl;
+    for(auto &record:records){
+        for(auto &value:record){
+            printValue(value);
+            std::cout<<"\t";
+        }
+        std::cout<<std::endl;
     }
 }
