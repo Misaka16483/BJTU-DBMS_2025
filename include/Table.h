@@ -1,13 +1,13 @@
 #pragma once
 #include"Data.h"
+#include"ast.h"
 #include<functional>
 class Table{
     std::vector<std::pair<std::string,DataType>> fields; //字段
     std::vector<std::vector<Value>> records; //记录
     std::string name; //表名
-
     bool isTypeMatch(Value value, DataType type); //类型匹配
-
+    inline int judge_cond(ExprNode *cond,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields);
 public:
     Table(std::string name):name(name){} //构造函数
     Table(){}
@@ -18,8 +18,8 @@ public:
     std::vector<std::vector<Value>> getRecords(); //获取记录
     std::string getName();
     size_t getFieldIndex(const std::string& name) const;
-    Table* Select() ; //选择所有记录
-    Table* Select(std::vector<std::string> columnNames,const std::function<bool(const std::vector<Value>&)>& condition);
+    Table* Select(ExprNode *cond) ; //选择所有记录
+    Table* Select(std::vector<std::string> columnNames,ExprNode *cond);
     void Delete();
     void Delete(const std::function<bool(const std::vector<Value>&)>& condition);
     void insert(std::vector<std::string> names,std::vector<Value> values); //插入记录

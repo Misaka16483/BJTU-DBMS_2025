@@ -2,10 +2,10 @@
 #include<variant>
 #include<string>
 #include<vector>
-using Value = std::variant<int, double, std::string>;
+using Value = std::variant<int, float, std::string>;
 enum class DataType{
     INT,
-    DOUBLE,
+    FLOAT,
     STRING
 };
 void printValue(Value v);

@@ -1,12 +1,15 @@
 #include"Table.h"
 #include<stdexcept>
 #include<iostream>
+#include<bits/stdc++.h>
+#include"exec.h"
+inline ExprNode *eval_expr(ExprNode*expr,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields);
 bool Table::isTypeMatch(Value value, DataType type){ //类型匹配
     switch(type){
         case DataType::INT:
             return std::holds_alternative<int>(value);
-        case DataType::DOUBLE:
-            return std::holds_alternative<double>(value);
+        case DataType::FLOAT:
+            return std::holds_alternative<float>(value);
         case DataType::STRING:
             return std::holds_alternative<std::string>(value);
         default:
@@ -50,27 +53,46 @@ size_t Table::getFieldIndex(const std::string& name) const{
     }
     throw std::out_of_range("Field not found: " + name);
 }
-Table* Table::Select(std::vector<std::string> columnNames,const std::function<bool(const std::vector<Value>&)>& condition){
+Table* Table::Select(std::vector<std::string> columnNames,ExprNode *cond){
     Table* result=new Table();
-    std::vector<size_t> indexs(columnNames.size());
-    for(int i=0;i<columnNames.size();i++){
-        size_t index=getFieldIndex(columnNames[i]);
-        result->addField(columnNames[i],fields[index].second);
-        indexs[i]=index;
+    for(auto &name:columnNames){
+        size_t index;
+        try{
+            index=getFieldIndex(name);
+        }
+        catch(const std::out_of_range& e){
+            throw std::invalid_argument("Field not found: " + name);
+            return nullptr;
+        }
+        result->addField(name,fields[index].second);
     }
     for(auto &record:records){
-        if(condition(record)){
-            std::vector<Value> newRecord(columnNames.size());
-            for(int i=0;i<columnNames.size();i++){
-                newRecord[i]=record[indexs[i]];
+        if(judge_cond(cond,record,fields)){
+            std::vector<Value> newRecord;
+            for(auto &name:columnNames){
+                size_t index=getFieldIndex(name);
+                newRecord.push_back(record[index]);
             }
             result->addRecord(newRecord);
         }
     }
     return result;
 }
-Table* Table::Select(){
-    return this;
+Table* Table::Select(ExprNode *cond){
+    Table* result=new Table();
+    for(auto field:fields){
+        result->addField(field.first,field.second);
+    }
+    for(auto &record:records){
+        if(judge_cond(cond,record,fields)){
+            std::vector<Value> newRecord;
+            for(auto &value:record){
+                newRecord.push_back(value);
+            }
+            result->addRecord(newRecord);
+        }
+    }
+    return result;
 }
 void Table::Delete(){
     records.clear();
@@ -137,5 +159,469 @@ void Table::printTable(){
             std::cout<<"\t";
         }
         std::cout<<std::endl;
+    }
+}
+ExprNode* make_expr_by_name(std::string name,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *expr=new ExprNode();
+    for(size_t i=0;i<fields.size();i++){
+        if(fields[i].first == name){
+            switch(fields[i].second){
+                case DataType::INT:
+                    expr->type=EXPR_INTNUM;
+                    expr->intval=std::get<int>(record[i]);
+                    break;
+                case DataType::FLOAT:
+                    expr->type=EXPR_APPROXNUM;
+                    expr->floatval=std::get<float>(record[i]);
+                    break;
+                case DataType::STRING:
+                    expr->type=EXPR_STRING;
+                    expr->strval=(char *)std::get<std::string>(record[i]).c_str();
+                    break;
+            }
+        }
+    }
+    return expr;
+}
+ExprNode* eval_add_expr(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr||r==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    ExprNode *rval=eval_expr(r,record,fields);
+    if(lval->type==EXPR_INTNUM&&rval->type==EXPR_INTNUM){
+        res->intval=lval->intval+rval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_APPROXNUM&&rval->type==EXPR_APPROXNUM){
+        res->floatval=lval->floatval+rval->floatval;
+        res->type=EXPR_APPROXNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_sub_expr(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr||r==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    ExprNode *rval=eval_expr(r,record,fields);
+    if(lval->type==EXPR_INTNUM&&rval->type==EXPR_INTNUM){
+        res->intval=lval->intval-rval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_APPROXNUM&&rval->type==EXPR_APPROXNUM){
+        res->floatval=lval->floatval-rval->floatval;
+        res->type=EXPR_APPROXNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_mul_expr(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr||r==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    ExprNode *rval=eval_expr(r,record,fields);
+    if(lval->type==EXPR_INTNUM&&rval->type==EXPR_INTNUM){
+        res->intval=lval->intval*rval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_APPROXNUM&&rval->type==EXPR_APPROXNUM){
+        res->floatval=lval->floatval*rval->floatval;
+        res->type=EXPR_APPROXNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_div_expr(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr||r==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    ExprNode *rval=eval_expr(r,record,fields);
+    if(lval->type==EXPR_INTNUM&&rval->type==EXPR_INTNUM){
+        res->intval=lval->intval/rval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_APPROXNUM&&rval->type==EXPR_APPROXNUM){
+        res->floatval=lval->floatval/rval->floatval;
+        res->type=EXPR_APPROXNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_mod_expr(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr||r==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    ExprNode *rval=eval_expr(r,record,fields);
+    if(lval->type==EXPR_INTNUM&&rval->type==EXPR_INTNUM){
+        res->intval=lval->intval%rval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_eq_expr(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr||r==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    ExprNode *rval=eval_expr(r,record,fields);
+    if(lval->type==EXPR_INTNUM&&rval->type==EXPR_INTNUM){
+        res->intval=lval->intval==rval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_APPROXNUM&&rval->type==EXPR_APPROXNUM){
+        res->intval=lval->floatval==rval->floatval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_STRING&&rval->type==EXPR_STRING){
+        std::string left=lval->strval;
+        std::string right=rval->strval;
+        res->intval=left==right;
+        res->type=EXPR_INTNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_ne_expr(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr||r==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    ExprNode *rval=eval_expr(r,record,fields);
+    if(lval->type==EXPR_INTNUM&&rval->type==EXPR_INTNUM){
+        res->intval=lval->intval!=rval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_APPROXNUM&&rval->type==EXPR_APPROXNUM){
+        res->intval=lval->floatval!=rval->floatval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_STRING&&rval->type==EXPR_STRING){
+        std::string left=lval->strval;
+        std::string right=rval->strval;
+        res->intval=left!=right;
+        res->type=EXPR_INTNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_lt_expr(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr||r==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    ExprNode *rval=eval_expr(r,record,fields);
+    if(lval->type==EXPR_INTNUM&&rval->type==EXPR_INTNUM){
+        res->intval=lval->intval<rval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_APPROXNUM&&rval->type==EXPR_APPROXNUM){
+        res->intval=lval->floatval<rval->floatval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_STRING&&rval->type==EXPR_STRING){
+        std::string left=lval->strval;
+        std::string right=rval->strval;
+        res->intval=left<right;
+        res->type=EXPR_INTNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_gt_expr(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr||r==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    ExprNode *rval=eval_expr(r,record,fields);
+    if(lval->type==EXPR_INTNUM&&rval->type==EXPR_INTNUM){
+        res->intval=lval->intval>rval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_APPROXNUM&&rval->type==EXPR_APPROXNUM){
+        res->intval=lval->floatval>rval->floatval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_STRING&&rval->type==EXPR_STRING){
+        std::string left=lval->strval;
+        std::string right=rval->strval;
+        res->intval=left>right;
+        res->type=EXPR_INTNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_le_expr(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr||r==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    ExprNode *rval=eval_expr(r,record,fields);
+    if(lval->type==EXPR_INTNUM&&rval->type==EXPR_INTNUM){
+        res->intval=lval->intval<=rval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_APPROXNUM&&rval->type==EXPR_APPROXNUM){
+        res->intval=lval->floatval<=rval->floatval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_STRING&&rval->type==EXPR_STRING){
+        std::string left=lval->strval;
+        std::string right=rval->strval;
+        res->intval=left<=right;
+        res->type=EXPR_INTNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_ge_expr(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr||r==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    ExprNode *rval=eval_expr(r,record,fields);
+    if(lval->type==EXPR_INTNUM&&rval->type==EXPR_INTNUM){
+        res->intval=lval->intval>=rval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_APPROXNUM&&rval->type==EXPR_APPROXNUM){
+        res->intval=lval->floatval>=rval->floatval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_STRING&&rval->type==EXPR_STRING){
+        std::string left=lval->strval;
+        std::string right=rval->strval;
+        res->intval=left>=right;
+        res->type=EXPR_INTNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_neg_expr(ExprNode *l,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    if(lval->type==EXPR_INTNUM){
+        res->intval=-lval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else if(lval->type==EXPR_APPROXNUM){
+        res->floatval=-lval->floatval;
+        res->type=EXPR_APPROXNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* eval_not_expr(ExprNode *l,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode();
+    if(l==nullptr){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    if(lval->type==EXPR_INTNUM){
+        res->intval=!lval->intval;
+        res->type=EXPR_INTNUM;
+    }
+    else{
+        throw std::invalid_argument("Invalid expression.");
+    }
+    return res;
+}
+ExprNode* is_in_val_list(ExprNode *l,ExprNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode(),tmp;
+    res->type=EXPR_INTNUM;
+    res->intval=1;
+    if(l->type==EXPR_ERROR){
+        throw std::invalid_argument("Invalid expression.");
+    }
+    ExprNode *lval=eval_expr(l,record,fields);
+    while(r){
+        tmp=*eval_expr(r,record,fields);
+        if(tmp.type==lval->type){
+            std::string left;
+            std::string right;
+            switch(lval->type){
+                case EXPR_INTNUM:
+                    if(lval->intval==tmp.intval){
+                        return res;
+                    }
+                    break;
+                case EXPR_APPROXNUM:
+                    if(lval->floatval==tmp.floatval){
+                        return res;
+                    }
+                    break;
+                case EXPR_STRING:
+                    left=lval->strval;
+                    right=tmp.strval;
+                    if(left==right){
+                        return res;
+                    }
+                    break;
+                default:
+                    throw std::invalid_argument("Invalid expression.");
+            }
+        }
+        else{
+            throw std::invalid_argument("Invalid expression.");
+        }
+        r=r->next;
+    }
+    res->intval=0;
+    return res;
+}
+ExprNode* is_in_select(ExprNode *l,SelectNode *r,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    ExprNode *res=new ExprNode(),tmp;
+    res->type=EXPR_INTNUM;
+    res->intval=1;
+    Table* table=do_select(r);
+    std::vector<std::pair<std::string,DataType>> field=table->getFields();
+    if(field.size()!=1){
+        throw std::invalid_argument("Invalid expression.");
+        res->intval=0;
+    }
+    else{
+        Value value=table->getRecords()[0][0];
+        if(field[0].second==DataType::INT){
+            if(l->type==EXPR_INTNUM){
+                if(std::get<int>(value)==l->intval){
+                    return res;
+                }
+            }
+        }
+        else if(field[0].second==DataType::FLOAT){
+            if(l->type==EXPR_APPROXNUM){
+                if(std::get<float>(value)==l->floatval){
+                    return res;
+                }
+            }
+        }
+        else if(field[0].second==DataType::STRING){
+            if(l->type==EXPR_STRING){
+                std::string left=l->strval;
+                std::string right=std::get<std::string>(value);
+                if(left==right){
+                    return res;
+                }
+            }
+        }
+        else{
+            throw std::invalid_argument("Invalid expression.");
+        }
+        res->intval=0;
+    }
+    return res;
+}
+inline ExprNode *eval_expr(ExprNode*expr,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    if(expr == nullptr){
+        return nullptr;
+    }
+    ExprNode *l,*r,*res;
+    int flag=0;
+    switch(expr->type){
+        case EXPR_INTNUM:
+        case EXPR_APPROXNUM:
+        case EXPR_STRING:
+        case EXPR_NULL:
+        case EXPR_ERROR:
+        case EXPR_LAZY:
+            return expr;
+        case EXPR_NAME:
+            return make_expr_by_name(expr->strval,record,fields);
+        case EXPR_ADD:
+            return eval_add_expr(expr->l,expr->r,record,fields);
+        case EXPR_SUB:
+            return eval_sub_expr(expr->l,expr->r,record,fields);
+        case EXPR_MUL:
+            return eval_mul_expr(expr->l,expr->r,record,fields);
+        case EXPR_DIV:
+            return eval_div_expr(expr->l,expr->r,record,fields);
+        case EXPR_MOD:
+            return eval_mod_expr(expr->l,expr->r,record,fields);
+        case EXPR_EQ:
+            return eval_eq_expr(expr->l,expr->r,record,fields);
+        case EXPR_NE:
+            return eval_ne_expr(expr->l,expr->r,record,fields);
+        case EXPR_LT:
+            return eval_lt_expr(expr->l,expr->r,record,fields);
+        case EXPR_GT:
+            return eval_gt_expr(expr->l,expr->r,record,fields);
+        case EXPR_LE:
+            return eval_le_expr(expr->l,expr->r,record,fields);
+        case EXPR_GE:
+            return eval_ge_expr(expr->l,expr->r,record,fields);
+        case EXPR_NEG:
+            return eval_neg_expr(expr->l,record,fields);
+        case EXPR_NOT:
+            return eval_not_expr(expr->l,record,fields);
+        case EXPR_NOT_IN_VAL_LIST:
+            flag=1;
+        case EXPR_IN_VAL_LIST:
+            res=is_in_val_list(expr->l,expr->r,record,fields);
+            res->intval^=flag;
+            return res;
+        case EXPR_NOT_IN_SELECT:
+            flag=1;
+        case EXPR_IN_SELECT:
+            res=is_in_select(expr->l,expr->select,record,fields);
+            res->intval^=flag;
+            return res;
+        default:
+            throw std::invalid_argument("Invalid expression.");
+    }
+}
+inline int Table::judge_cond(ExprNode *cond,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
+    if(cond == nullptr){
+        return 1;
+    }
+    ExprNode *res = eval_expr(cond, record, fields);
+    if(res==nullptr){
+        throw std::invalid_argument("Condition evaluation error.");
+        return 0;
+    }
+    else{
+        return res->intval;
     }
 }
