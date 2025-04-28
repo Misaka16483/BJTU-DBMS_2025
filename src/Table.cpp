@@ -1,7 +1,6 @@
 #include"Table.h"
 #include<stdexcept>
 #include<iostream>
-#include<bits/stdc++.h>
 #include"exec.h"
 inline ExprNode *eval_expr(ExprNode*expr,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields);
 bool Table::isTypeMatch(Value value, DataType type){ //类型匹配
@@ -94,19 +93,6 @@ Table* Table::Select(ExprNode *cond){
     }
     return result;
 }
-void Table::Delete(){
-    records.clear();
-}
-void Table::Delete(const std::function<bool(const std::vector<Value>&)>& condition){
-    auto it=records.begin();
-    while(it!=records.end()){
-        if(condition(*it)){
-            it=records.erase(it);
-        }else{  
-            ++it;
-        }
-    }
-}
 void Table::insert(std::vector<std::string> names,std::vector<Value> values){
     std::vector<int> indexs;
     for(auto &name:names){
@@ -128,6 +114,29 @@ void Table::insert(std::vector<std::string> names,std::vector<Value> values){
         record[indexs[i]]=values[i];
     }
     records.push_back(record);
+}
+void Table::insert(std::vector<Value> values){
+    std::vector<Value> record(fields.size());
+    if(record.size() != fields.size()){
+        throw std::invalid_argument("Record size does not match fields size.");
+    }
+    for(size_t i=0;i<record.size();i++){
+        if(!isTypeMatch(values[i],fields[i].second)){
+            throw std::invalid_argument("Type mismatch for field: " + fields[i].first);
+        }
+        record[i]=values[i];
+    }
+    records.push_back(record);
+}
+void Table::Delete(ExprNode *cond){
+    for(auto it=records.begin();it!=records.end();){
+        if(judge_cond(cond,*it,fields)){
+            it=records.erase(it);
+        }
+        else{
+            ++it;
+        }
+    }
 }
 void Table::update(std::string name,Value newValue,const std::function<bool(const std::vector<Value>&)>& condition){
     size_t index;

@@ -8,4 +8,4 @@ link_directories(${CMAKE_SOURCE_DIR}/lib)
 
 add_executable(dbms main.cpp src/BTree.cpp src/Table.cpp src/Data.cpp src/Database.cpp src/exec.cpp)
 
-target_link_libraries(dbms PRIVATE parser.lib)
+target_link_libraries(dbms PRIVATE libparser.a)

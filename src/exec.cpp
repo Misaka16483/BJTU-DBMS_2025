@@ -2,6 +2,7 @@
 #include<iostream>
 #include<vector>
 #include<stdexcept>
+#include<variant>
 using namespace std;
 void exec_single(string& sql);
 void exec(string& sql){
@@ -33,13 +34,13 @@ void exec_single(string& sql){
         do_select(root->select)->printTable();
     }
     else if(root->type == DELETE_STMT){
-
+        do_delete(root->Delete);
     }
     else if(root->type == INSERT_STMT){
-
+        do_insert(root->insert);
     }
     else if(root->type == UPDATE_STMT){
-
+        do_update(root->update);
     }
 }
 Table* do_select(SelectNode *selectNode){
@@ -68,4 +69,67 @@ Table* do_select(SelectNode *selectNode){
         return table->Select(fieldNames,selectNode->where);
     }
     return nullptr;
+}
+void do_insert(InsertNode *insert){
+    if(insert==nullptr || insert->table ==nullptr||insert->value_list_head==nullptr){
+        throw std::invalid_argument("Invalid insert statement.");
+    }
+    std::string tableName=insert->table;
+    if(db==nullptr){
+        throw std::runtime_error("Database not initialized.");
+    }
+    else{
+        Table *table=db->getTable(tableName);
+        if(table==nullptr){
+            throw std::runtime_error("Table not found.");
+        }
+        std::vector<Value> values;
+        for(ValueListNode *vl = insert->value_list_head;vl;vl=vl->next){
+            for(ExprNode *v=vl->head;v;v=v->next){
+                if(v->type==EXPR_INTNUM){
+                    values.push_back(v->intval);
+                }
+                else if(v->type==EXPR_APPROXNUM){
+                    values.push_back(v->floatval);
+                }
+                else if(v->type==EXPR_STRING){
+                    values.push_back(v->strval);
+                }
+            }
+        }
+        table->insert(values);
+    }
+    return;
+}
+void do_delete(DeleteNode *deleteNode){
+    if(deleteNode==nullptr || deleteNode->table==nullptr){
+        throw std::invalid_argument("Invalid delete statement.");
+    }
+    std::string tableName=deleteNode->table;
+    if(db==nullptr){
+        throw std::runtime_error("Database not initialized.");
+    }
+    else{
+        Table *table=db->getTable(tableName);
+        if(table==nullptr){
+            throw std::runtime_error("Table not found.");
+        }
+        table->Delete(deleteNode->where);
+    }
+}
+void do_update(UpdateNode *updateNode){
+    if(updateNode==nullptr || updateNode->table==nullptr || updateNode->where==nullptr||updateNode->set_head==nullptr){
+        throw std::invalid_argument("Invalid update statement.");
+    }
+    std::string tableName=updateNode->table;
+    if(db==nullptr){
+        throw std::runtime_error("Database not initialized.");
+    }
+    else{
+        Table *table=db->getTable(tableName);
+        if(table==nullptr){
+            throw std::runtime_error("Table not found.");
+        }
+
+    }
 }

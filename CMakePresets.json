@@ -2,15 +2,14 @@
     "version": 8,
     "configurePresets": [
         {
-            "name": "compile_with_gcc",
-            "displayName": "GCC 14.2.0 x86_64-w64-mingw32 (ucrt64)",
-            "description": "正在使用编译器: C = D:\\msys64\\ucrt64\\bin\\gcc.exe, CXX = D:\\msys64\\ucrt64\\bin\\g++.exe",
-            "generator": "MinGW Makefiles",
+            "name": "compileWithClang",
+            "displayName": "Clang 17.0.0 arm64-apple-darwin24.3.0",
+            "description": "正在使用编译器: C = /usr/bin/clang, CXX = /usr/bin/clang++",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
-                "CMAKE_C_COMPILER": "D:/msys64/ucrt64/bin/gcc.exe",
-                "CMAKE_CXX_COMPILER": "D:/msys64/ucrt64/bin/g++.exe",
+                "CMAKE_C_COMPILER": "/usr/bin/clang",
+                "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
                 "CMAKE_BUILD_TYPE": "Debug"
             }
         }
