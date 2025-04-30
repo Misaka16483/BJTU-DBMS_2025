@@ -130,6 +130,8 @@ void do_update(UpdateNode *updateNode){
         if(table==nullptr){
             throw std::runtime_error("Table not found.");
         }
-
+        for(SetNode *set=updateNode->set_head;set;set=set->next){
+        }
+        table->update(updateNode->set_head,updateNode->where);
     }
 }

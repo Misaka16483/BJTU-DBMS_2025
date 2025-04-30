@@ -138,24 +138,7 @@ void Table::Delete(ExprNode *cond){
         }
     }
 }
-void Table::update(std::string name,Value newValue,const std::function<bool(const std::vector<Value>&)>& condition){
-    size_t index;
-    try{
-        index=getFieldIndex(name);
-    }
-    catch(const std::out_of_range& e){
-        throw std::invalid_argument("Field not found: " + name);
-        return;
-    }
-    if(!isTypeMatch(newValue,fields[index].second)){
-        throw std::invalid_argument("Type mismatch for field: " + fields[index].first);
-    }
-    for(auto &record:records){
-        if(condition(record)){
-            record[index]=newValue;
-        }
-    }
-}
+
 void Table::printTable(){
     for(auto &field:fields){
         std::cout<<field.first<<"\t";
@@ -632,5 +615,44 @@ inline int Table::judge_cond(ExprNode *cond,std::vector<Value> &record,std::vect
     }
     else{
         return res->intval;
+    }
+}
+void Table::update(SetNode *set,ExprNode *cond){
+    std::vector<int> indexs;
+    std::vector<Value> newValues;
+    while(set){
+        try{
+            indexs.push_back(getFieldIndex(set->column));
+        }
+        catch(const std::out_of_range& e){
+            throw std::invalid_argument("Field not found");
+            return;
+        }
+        if(set->expr->type==EXPR_INTNUM){
+            newValues.push_back(set->expr->intval);
+        }
+        else if(set->expr->type==EXPR_APPROXNUM){
+            newValues.push_back(set->expr->floatval);
+        }
+        else if(set->expr->type==EXPR_STRING){
+            newValues.push_back(set->expr->strval);
+        }
+        else{
+            throw std::invalid_argument("Invalid expression.");
+            return;
+        }
+        set=set->next;
+    }
+    for(size_t i=0;i<indexs.size();i++){
+        if(!isTypeMatch(newValues[i],fields[indexs[i]].second)){
+            throw std::invalid_argument("Type mismatch for field: " + fields[indexs[i]].first);
+        }
+    }
+    for(auto &record:records){
+        if(judge_cond(cond,record,fields)){
+            for(int i=0;i<indexs.size();i++){
+                record[indexs[i]]=newValues[i];
+            }
+        }
     }
 }

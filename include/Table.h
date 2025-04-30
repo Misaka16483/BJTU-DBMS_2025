@@ -22,8 +22,7 @@ public:
     Table* Select(std::vector<std::string> columnNames,ExprNode *cond);
     void Delete(ExprNode *cond); //删除记录
     void insert(std::vector<std::string> names,std::vector<Value> values); //插入记录
-    void update(std::string name,Value newValue,const std::function<bool(const std::vector<Value>&)>& condition); //更新记录
-    //void updateRecord(int index, std::vector<Value> newRecord); //更新记录
+    void update(SetNode *set,ExprNode *cond); //更新记录
     void printTable();
     void insert(std::vector<Value> values);
 };
