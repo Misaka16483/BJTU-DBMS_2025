@@ -469,37 +469,26 @@ ExprNode* is_in_val_list(ExprNode *l,ExprNode *r,std::vector<Value> &record,std:
         throw std::invalid_argument("Invalid expression.");
     }
     ExprNode *lval=eval_expr(l,record,fields);
-    while(r){
-        tmp=*eval_expr(r,record,fields);
-        if(tmp.type==lval->type){
-            std::string left;
-            std::string right;
-            switch(lval->type){
-                case EXPR_INTNUM:
-                    if(lval->intval==tmp.intval){
-                        return res;
-                    }
-                    break;
-                case EXPR_APPROXNUM:
-                    if(lval->floatval==tmp.floatval){
-                        return res;
-                    }
-                    break;
-                case EXPR_STRING:
-                    left=lval->strval;
-                    right=tmp.strval;
-                    if(left==right){
-                        return res;
-                    }
-                    break;
-                default:
-                    throw std::invalid_argument("Invalid expression.");
+    ExprNode *rval=r;
+    while(rval){
+        if(lval->type==EXPR_INTNUM){
+            if(lval->intval==rval->intval){
+                return res;
             }
         }
-        else{
-            throw std::invalid_argument("Invalid expression.");
+        else if(lval->type==EXPR_APPROXNUM){
+            if(lval->floatval==rval->floatval){
+                return res;
+            }
         }
-        r=r->next;
+        else if(lval->type==EXPR_STRING){
+            std::string left=lval->strval;
+            std::string right=rval->strval;
+            if(left==right){
+                return res;
+            }
+        }
+        rval=rval->next;
     }
     res->intval=0;
     return res;
@@ -510,37 +499,53 @@ ExprNode* is_in_select(ExprNode *l,SelectNode *r,std::vector<Value> &record,std:
     res->intval=1;
     Table* table=do_select(r);
     std::vector<std::pair<std::string,DataType>> field=table->getFields();
+    std::vector<std::vector<Value>> records=table->getRecords();
     if(field.size()!=1){
         throw std::invalid_argument("Invalid expression.");
         res->intval=0;
     }
     else{
-        Value value=table->getRecords()[0][0];
-        if(field[0].second==DataType::INT){
-            if(l->type==EXPR_INTNUM){
-                if(std::get<int>(value)==l->intval){
-                    return res;
-                }
+        ExprNode *lval=eval_expr(l,record,fields);
+        if(lval->type==EXPR_INTNUM){
+            if(field[0].second!=DataType::INT){
+                throw std::invalid_argument("Invalid expression.");
+                res->intval=0;
             }
         }
-        else if(field[0].second==DataType::FLOAT){
-            if(l->type==EXPR_APPROXNUM){
-                if(std::get<float>(value)==l->floatval){
-                    return res;
-                }
+        else if(lval->type==EXPR_APPROXNUM){
+            if(field[0].second!=DataType::FLOAT){
+                throw std::invalid_argument("Invalid expression.");
+                res->intval=0;
             }
         }
-        else if(field[0].second==DataType::STRING){
-            if(l->type==EXPR_STRING){
-                std::string left=l->strval;
-                std::string right=std::get<std::string>(value);
-                if(left==right){
-                    return res;
-                }
+        else if(lval->type==EXPR_STRING){
+            if(field[0].second!=DataType::STRING){
+                throw std::invalid_argument("Invalid expression.");
+                res->intval=0;
             }
         }
         else{
             throw std::invalid_argument("Invalid expression.");
+            res->intval=0;
+        }
+        for(auto &record:records){
+            if(lval->type==EXPR_INTNUM){
+                if(lval->intval==std::get<int>(record[0])){
+                    return res;
+                }
+            }
+            else if(lval->type==EXPR_APPROXNUM){
+                if(lval->floatval==std::get<float>(record[0])){
+                    return res;
+                }
+            }
+            else if(lval->type==EXPR_STRING){
+                std::string left=lval->strval;
+                std::string right=std::get<std::string>(record[0]);
+                if(left==right){
+                    return res;
+                }
+            }
         }
         res->intval=0;
     }
