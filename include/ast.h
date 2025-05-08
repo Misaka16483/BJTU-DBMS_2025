@@ -52,18 +52,6 @@ enum TYPE_ID
     EXPR_IN_SELECT,
     EXPR_NOT_IN_SELECT,
     EXPR_VAL_LIST,
-    EXPR_FUNC,
-    EXPR_AGR_FUNC_BEGIN,
-    EXPR_COUNT_ALL,
-    EXPR_COUNT,
-    EXPR_SUM_ALL,
-    EXPR_SUM,
-    EXPR_AGR_FUNC_END,
-    EXPR_CASE,
-    EXPR_CASE_ELSE,
-    EXPR_CASE_EXPR,
-    EXPR_CASE_EXPR_ELSE,
-    EXPR_CASE_NODE,
     TABLE_DEFAULT,
     TABLE_SUBQUERY,
     ORDERBY,
@@ -73,6 +61,7 @@ enum TYPE_ID
     DELETE_STMT,
     INSERT_STMT,
     UPDATE_STMT,
+    USE_STMT,
     EXPR_LAZY,
     EXPR_NULL,
     EXPR_ERROR
@@ -121,16 +110,15 @@ typedef struct SetNode
     struct SetNode *next;
 } SetNode;
 
+typedef struct UseNode{
+    char *db;
+} UseNode;
+
 typedef struct ColumnNode
 {
     char *column;
     struct ColumnNode *next;
 } ColumnNode;
-
-typedef struct LimitNode
-{
-    u32 start, count;
-} LimitNode;
 
 typedef struct SelectNode
 {
@@ -139,7 +127,6 @@ typedef struct SelectNode
     struct ExprNode *where;
     struct ExprNode *group;
     struct ExprNode *order;
-    struct LimitNode *limit;
     void *recs;
 } SelectNode;
 
@@ -172,26 +159,13 @@ typedef struct SqlAst
         DeleteNode *Delete;
         InsertNode *insert;
         UpdateNode *update;
+        UseNode *use;
     };
 
 } SqlAst;
 
 extern SqlAst *ast_root;
-
-extern void yyerror(char *s, ...);
-void emit(char *s, ...);
-
 extern SqlAst *parse_sql(char *sql);
 extern char *my_strdup(const char *s);
-
-void repeat(char c, int cnt);
-void print_ast(SqlAst *node, int d);
-void print_select(SelectNode *node, int d);
-void print_Delete(DeleteNode *node, int d);
-void print_insert(InsertNode *node, int d);
-void print_update(UpdateNode *node, int d);
-void print_column(ExprNode *node, int d);
-void print_val_list(ExprNode *node, int d);
-void print_expr(ExprNode *node, int d);
 
 #endif

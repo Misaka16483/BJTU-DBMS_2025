@@ -1,4 +1,5 @@
 #include"exec.h"
+#include"File.h"
 #include<iostream>
 #include<vector>
 #include<stdexcept>
@@ -14,6 +15,10 @@ void exec(string& sql){
                 string single=sql.substr(prev,i+1);
                 if(single=="EXIT;"||single=="QUIT;"){
                     exit(0);
+                }
+                if(single=="COMMIT;"){
+                    saveDatabase(db);
+                    continue;
                 }
                 string str=sql.substr(prev,i+1);
                 exec_single(str);
@@ -41,6 +46,12 @@ void exec_single(string& sql){
     }
     else if(root->type == UPDATE_STMT){
         do_update(root->update);
+    }
+    else if(root->type == USE_STMT){
+        loadDatabase(root->use->db);
+    }
+    else{
+        throw runtime_error("Unknown SQL statement.");
     }
 }
 Table* do_select(SelectNode *selectNode){

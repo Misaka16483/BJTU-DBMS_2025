@@ -24,3 +24,9 @@ Table* Database::getTable(std::string tableName){
     }
     return nullptr; //未找到表
 }
+std::string Database::getName(){
+    return name; //返回数据库名
+}
+void Database::insertTable(Table table){
+    this->tables.push_back(table);
+}
