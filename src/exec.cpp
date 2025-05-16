@@ -4,7 +4,9 @@
 #include<vector>
 #include<stdexcept>
 #include<variant>
+#include<filesystem>
 using namespace std;
+namespace fs=std::filesystem;
 void exec_single(string& sql);
 void exec(string& sql){
     int len=sql.length();
@@ -50,9 +52,28 @@ void exec_single(string& sql){
     else if(root->type == USE_STMT){
         loadDatabase(root->use->db);
     }
+    else if(root->type == CREATE_STMT){
+        do_create(root->create);
+    }
     else{
         throw runtime_error("Unknown SQL statement.");
     }
+}
+std::vector<std::vector<Value>> joinTables(std::vector<Table *> &tables,int startIndex){
+    if(startIndex == tables.size()-1){
+        return tables[startIndex]->getRecords();
+    }
+    std::vector<std::vector<Value>> result;
+    std::vector<std::vector<Value>> records1 = tables[startIndex]->getRecords();
+    std::vector<std::vector<Value>> records2 = joinTables(tables, startIndex + 1);
+    for(const auto &record1 : records1){
+        for(const auto &record2 : records2){
+            std::vector<Value> newRecord = record1;
+            newRecord.insert(newRecord.end(), record2.begin(), record2.end());
+            result.push_back(newRecord);
+        }
+    }
+    return result;
 }
 Table* do_select(SelectNode *selectNode){
     std::string tableName=selectNode->table_head->table;
@@ -61,7 +82,7 @@ Table* do_select(SelectNode *selectNode){
         return nullptr;
     }
     else{
-        Table *table=db->getTable(tableName);
+        /*Table *table=db->getTable(tableName);
         if(table==nullptr){
             throw runtime_error("Table not found.");
             return nullptr;
@@ -74,10 +95,70 @@ Table* do_select(SelectNode *selectNode){
             }
             else{
                 fieldNames.push_back(col->text);
+                
                 col=col->next;
             }
         }
-        return table->Select(fieldNames,selectNode->where);
+        return table->Select(fieldNames,selectNode->where);*/
+        std::vector<Table *> tables;
+        TableNode *tableNode = selectNode->table_head;
+        while(tableNode){
+            std::string tableName = tableNode->table;
+            Table *table = db->getTable(tableName);
+            if(table == nullptr){
+                throw std::runtime_error("Table not found: " + tableName);
+            }
+            tables.push_back(table);
+            tableNode = tableNode->next;
+        }
+        if(tables.size() == 1){
+            Table *table=db->getTable(tableName);
+            if(table==nullptr){
+                throw runtime_error("Table not found.");
+                return nullptr;
+            }
+            std::vector<std::string> fieldNames;
+            ExprNode *col=selectNode->column_head;
+            while(col){
+                if(col->type==SELECT_ALL){
+                    return table->Select(selectNode->where);
+                }
+                else{
+                    fieldNames.push_back(col->text);
+                    
+                    col=col->next;
+                }
+            }
+            return table->Select(fieldNames,selectNode->where);
+        }
+        else{
+            // Join the tables
+            Table *result = new Table("result");
+            for(Table *table : tables){
+                std::vector<std::pair<std::string, DataType>> fields = table->getFields();
+                for(auto &field : fields){
+                    result->addField(table->getName()+"."+field.first, field.second, table->getName());
+                }
+            }
+            std::vector<std::vector<Value>> records;
+            records=joinTables(tables,0);
+            for(const auto &record : records){
+                result->addRecord(record);
+            }
+            std::vector<std::string> tableNames;
+            ExprNode *col=selectNode->column_head;
+            while(col){
+                if(col->type==SELECT_ALL){
+                    return result;
+                }
+                else{
+                    tableNames.push_back(col->text);
+                    col=col->next;
+                }
+            }
+            return result->Select(tableNames,selectNode->where);
+        }
+
     }
     return nullptr;
 }
@@ -144,5 +225,48 @@ void do_update(UpdateNode *updateNode){
         for(SetNode *set=updateNode->set_head;set;set=set->next){
         }
         table->update(updateNode->set_head,updateNode->where);
+    }
+}
+void do_create(CreateNode *createNode){
+    if(createNode==nullptr){
+        throw std::invalid_argument("Invalid create statement.");
+    }
+    if(createNode->type==CREATE_DATABASE){
+        std::string dbName=createNode->name;
+        fs::path dbPath("./data/"+dbName);
+        if(fs::exists(dbPath)){
+            throw std::runtime_error("Database already exists.");
+        }
+        else{
+            fs::create_directory(dbPath);
+        }
+    }
+    else if(createNode->type==CREATE_TABLE){
+        std::string tableName=createNode->name;
+        if(db==nullptr){
+            throw std::runtime_error("Database not initialized.");
+        }
+        else{
+            Table *table=new Table(tableName);
+            FieldListNode *fieldList=createNode->field_list_head;
+            while(fieldList){
+                FieldNode *field=fieldList->field;
+                std::string fieldName=field->name;
+                DataType fieldType;
+                if(field->type==FIELD_TYPE_INT){
+                    fieldType=DataType::INT;
+                }
+                else if(field->type==FIELD_TYPE_FLOAT){
+                    fieldType=DataType::FLOAT;
+                }
+                else if(field->type==FIELD_TYPE_STRING){
+                    fieldType=DataType::STRING;
+                }
+                table->addField(fieldName,fieldType);
+                fieldList=fieldList->next;
+            }
+            db->insertTable(*table);
+        }
+        
     }
 }

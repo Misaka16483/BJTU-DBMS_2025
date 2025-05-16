@@ -62,10 +62,29 @@ enum TYPE_ID
     INSERT_STMT,
     UPDATE_STMT,
     USE_STMT,
+    CREATE_STMT,
+    CREATE_TABLE,
+    CREATE_DATABASE,
+    FIELD_TYPE_INT,
+    FIELD_TYPE_FLOAT,
+    FIELD_TYPE_STRING,
     EXPR_LAZY,
     EXPR_NULL,
     EXPR_ERROR
 };
+
+typedef struct FieldNode
+{
+    char *name;
+    u16 type;
+    u16 flags;
+} FieldNode;
+
+typedef struct FieldListNode
+{
+    struct FieldNode *field;
+    struct FieldListNode *next;
+} FieldListNode;
 
 typedef struct ExprNode
 {
@@ -151,6 +170,13 @@ typedef struct UpdateNode
     struct ExprNode *where;
 } UpdateNode;
 
+typedef struct CreateNode
+{
+    u16 type;
+    char *name;
+    struct FieldListNode *field_list_head;
+} CreateNode;
+
 typedef struct SqlAst
 {
     u16 type;
@@ -160,6 +186,7 @@ typedef struct SqlAst
         InsertNode *insert;
         UpdateNode *update;
         UseNode *use;
+        CreateNode *create;
     };
 
 } SqlAst;

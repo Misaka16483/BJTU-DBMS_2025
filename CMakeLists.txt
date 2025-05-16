@@ -6,6 +6,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 link_directories(${CMAKE_SOURCE_DIR}/lib)
 
-add_executable(dbms main.cpp src/BTree.cpp src/Table.cpp src/Data.cpp src/Database.cpp src/exec.cpp src/File.cpp)
+add_executable(dbms main.cpp src/Table.cpp src/Data.cpp src/Database.cpp src/exec.cpp src/File.cpp)
 
 target_link_libraries(dbms PRIVATE libparser.a)

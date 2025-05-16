@@ -63,16 +63,16 @@ void loadDatabase(std::string name){
     if(!fs::exists(dbPath)){
         throw std::runtime_error("Database does not exist");
     }
-    std::cout<<"Loading database "<<name<<std::endl;
+    //std::cout<<"Loading database "<<name<<std::endl;
     for(auto& p:fs::directory_iterator(dbPath)){
-        std::cout<<p.path()<<std::endl;
+        //std::cout<<p.path()<<std::endl;
         if(p.path().extension() == ".csv"){
             std::ifstream ifs(p.path());
             if(!ifs.is_open()){
                 throw std::runtime_error("Failed to open table file");
             }
             std::string tableName = p.path().stem().string();
-            std::cout<<tableName<<std::endl;
+            //std::cout<<tableName<<std::endl;
             Table* table=new Table(tableName);
             loadTable(table, ifs);
             db->insertTable(*table);

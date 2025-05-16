@@ -3,6 +3,7 @@
 #include<iostream>
 #include"exec.h"
 inline ExprNode *eval_expr(ExprNode*expr,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields);
+//inline ExprNode *eval_expr(ExprNode*expr,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields,std::vector<std::string> &fieldOrigin);
 bool Table::isTypeMatch(Value value, DataType type){ //类型匹配
     switch(type){
         case DataType::INT:
@@ -23,6 +24,16 @@ void Table::addField(std::string fieldName,DataType type){ //添加字段
         }
     }
     fields.push_back({fieldName,type});
+}
+void Table::addField(std::string fieldName,DataType type,std::string origin){
+    for(int i=0;i<fields.size();i++){
+        if(fields[i].first == fieldName && fieldOrigin[i] == origin){
+            throw std::invalid_argument("Field already exists: " + fieldName);
+            return;
+        }
+    }
+    fields.push_back({fieldName,type});
+    fieldOrigin.push_back(origin);
 }
 void Table::addRecord(std::vector<Value> record){ //添加记录
     if(record.size() != fields.size()){
@@ -50,7 +61,15 @@ size_t Table::getFieldIndex(const std::string& name) const{
             return i;
         }
     }
-    throw std::out_of_range("Field not found: " + name);
+    throw std::out_of_range("1Field not found: " + name);
+}
+size_t Table::getFieldIndex(const std::string& name,const std::string& tableName) const{
+    for(size_t i=0;i<fields.size();i++){
+        if(fields[i].first == name && fieldOrigin[i] == tableName){
+            return i;
+        }
+    }
+    throw std::out_of_range("2Field not found: " + name);
 }
 Table* Table::Select(std::vector<std::string> columnNames,ExprNode *cond){
     Table* result=new Table();
@@ -60,7 +79,7 @@ Table* Table::Select(std::vector<std::string> columnNames,ExprNode *cond){
             index=getFieldIndex(name);
         }
         catch(const std::out_of_range& e){
-            throw std::invalid_argument("Field not found: " + name);
+            throw std::invalid_argument("3Field not found: " + name);
             return nullptr;
         }
         result->addField(name,fields[index].second);
@@ -70,6 +89,43 @@ Table* Table::Select(std::vector<std::string> columnNames,ExprNode *cond){
             std::vector<Value> newRecord;
             for(auto &name:columnNames){
                 size_t index=getFieldIndex(name);
+                newRecord.push_back(record[index]);
+            }
+            result->addRecord(newRecord);
+        }
+    }
+    return result;
+}
+Table* Table::Select(std::vector<std::string> tableNames,std::vector<std::string> columnNames,ExprNode *cond){
+    Table* result=new Table();
+    for(int i=0;i<columnNames.size();i++){
+            size_t index;
+            size_t p;
+            try{
+                p=columnNames[i].find(".");
+                p++;
+                std::string columnName=columnNames[i].substr(p);
+                std::string tableName=tableNames[i];
+                index=getFieldIndex(columnName,tableName);
+            }
+            catch(const std::out_of_range& e){
+                throw std::invalid_argument("4Field not found: " + columnNames[i].substr(p));
+                return nullptr;
+            }
+            
+            result->addField(columnNames[i],fields[index].second);
+    }
+    for(auto &record:records){
+        if(judge_cond(cond,record,fields)){
+            std::vector<Value> newRecord;
+            for(int i=0;i<columnNames.size();i++){
+                size_t index;
+                size_t p;
+                p=columnNames[i].find(".");
+                p++;
+                std::string columnName=columnNames[i].substr(p);
+                std::string tableName=tableNames[i];
+                index=getFieldIndex(columnName,tableName);
                 newRecord.push_back(record[index]);
             }
             result->addRecord(newRecord);
@@ -101,7 +157,7 @@ void Table::insert(std::vector<std::string> names,std::vector<Value> values){
             index=getFieldIndex(name);
         }
         catch(const std::out_of_range& e){
-            throw std::invalid_argument("Field not found: " + name);
+            throw std::invalid_argument("5Field not found: " + name);
             return;
         }
         indexs.push_back(index);
@@ -551,6 +607,7 @@ ExprNode* is_in_select(ExprNode *l,SelectNode *r,std::vector<Value> &record,std:
     }
     return res;
 }
+
 inline ExprNode *eval_expr(ExprNode*expr,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
     if(expr == nullptr){
         return nullptr;
@@ -565,6 +622,8 @@ inline ExprNode *eval_expr(ExprNode*expr,std::vector<Value> &record,std::vector<
         case EXPR_ERROR:
         case EXPR_LAZY:
             return expr;
+        case EXPR_TABLE_COLUMN:
+            return make_expr_by_name(expr->text,record,fields);
         case EXPR_NAME:
             return make_expr_by_name(expr->strval,record,fields);
         case EXPR_ADD:
@@ -593,6 +652,21 @@ inline ExprNode *eval_expr(ExprNode*expr,std::vector<Value> &record,std::vector<
             return eval_neg_expr(expr->l,record,fields);
         case EXPR_NOT:
             return eval_not_expr(expr->l,record,fields);
+        case EXPR_AND:
+            res=new ExprNode();
+            res->type=EXPR_INTNUM;
+            res->intval=eval_expr(expr->l,record,fields)->intval&&eval_expr(expr->r,record,fields)->intval;
+            return res;
+        case EXPR_OR:
+            res=new ExprNode();
+            res->type=EXPR_INTNUM;
+            res->intval=eval_expr(expr->l,record,fields)->intval||eval_expr(expr->r,record,fields)->intval;
+            return res;
+        case EXPR_XOR:
+            res=new ExprNode();
+            res->type=EXPR_INTNUM;
+            res->intval=eval_expr(expr->l,record,fields)->intval^eval_expr(expr->r,record,fields)->intval;
+            return res;
         case EXPR_NOT_IN_VAL_LIST:
             flag=1;
         case EXPR_IN_VAL_LIST:
@@ -609,6 +683,7 @@ inline ExprNode *eval_expr(ExprNode*expr,std::vector<Value> &record,std::vector<
             throw std::invalid_argument("Invalid expression.");
     }
 }
+
 inline int Table::judge_cond(ExprNode *cond,std::vector<Value> &record,std::vector<std::pair<std::string,DataType>> &fields){
     if(cond == nullptr){
         return 1;
